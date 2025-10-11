@@ -1,0 +1,27 @@
+# Core dependencies
+PySide6==6.6.1
+numpy==1.26.3
+scipy==1.12.0
+
+# Audio processing
+librosa==0.10.1
+soundfile==0.12.1
+pydub==0.25.1
+
+# MIDI processing
+mido==1.3.0
+python-rtmidi==1.5.8
+pretty_midi==0.2.10
+
+# AI and machine learning
+crepe==0.0.14
+
+# IPC and messaging
+pyzmq==25.1.2
+pydantic==2.6.0
+
+# Testing and development
+pytest==7.4.3
+pytest-qt==4.2.0
+ruff==0.1.11
+black==23.12.1
