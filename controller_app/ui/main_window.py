@@ -140,6 +140,20 @@ class MainWindow(QMainWindow):
         self.template_selector.templateSelected.connect(self._on_template_selected)
         main_layout.addWidget(self.template_selector)
         
+        # Demo prompt selector
+        demo_layout = QHBoxLayout()
+        demo_layout.addWidget(QLabel("Load Demo Prompt:"))
+        self.demo_prompt_combo = QComboBox()
+        self.demo_prompt_combo.addItem("(Select a demo...)")
+        self.demo_prompt_combo.addItem("Design a serum pluck")
+        self.demo_prompt_combo.addItem("House bassline (A minor, 124 BPM)")
+        self.demo_prompt_combo.addItem("Humanize MIDI pattern")
+        self.demo_prompt_combo.addItem("Quick mix polish")
+        self.demo_prompt_combo.currentIndexChanged.connect(self._on_demo_prompt_selected)
+        demo_layout.addWidget(self.demo_prompt_combo)
+        demo_layout.addStretch()
+        main_layout.addLayout(demo_layout)
+        
         # Chat section with splitter
         splitter = QSplitter(Qt.Vertical)
         
@@ -312,6 +326,102 @@ class MainWindow(QMainWindow):
             
         except Exception as e:
             self.results_text.append(f"❌ Error loading template: {str(e)}")
+    
+    def _on_demo_prompt_selected(self, index: int):
+        """Handle demo prompt selection."""
+        if index == 0:  # "(Select a demo...)"
+            return
+        
+        demo_prompts = {
+            1: {  # Design a serum pluck
+                "name": "Design a serum pluck",
+                "prompt": """Design a synth sound with these characteristics: bright pluck, short decay, tight envelope
+
+Target: Channel 0
+
+Steps to take:
+1. Use list_state to see the current project state
+2. Use get_params to examine the plugin parameters on channel 0
+3. Use set_param to adjust parameters to achieve the desired sound:
+   - For "bright" sounds: higher cutoff (0.7-0.85)
+   - For "pluck" sounds: short envelope decay (0.15-0.25)
+   - Set release to very short (0.05-0.1)
+4. Use set_note_batch to add a test note on channel 0:
+   - Single note at middle C (pitch 60)
+   - Start at beat 0, duration 0.5 beats
+   - Velocity 110"""
+            },
+            2: {  # House bassline
+                "name": "House bassline (A minor, 124 BPM)",
+                "prompt": """Create an energetic bassline in A minor at 124 BPM
+
+Target: Channel 1
+Length: 4 bars (16 beats total)
+
+Steps to take:
+1. Use list_state to check the current project state
+2. Use set_note_batch to create a bassline on channel 1
+
+Guidelines for the bassline:
+- Stay in the A minor scale (root note: 45 for A1)
+- Create a house-style pattern with emphasis on beats 1 and 3
+- Use 8-12 notes over 16 beats
+- Note range: 41-50 (E1 to D2)
+- Higher velocities on downbeats (100-120)
+- Lower velocities on offbeats (70-90)
+- Note durations: 0.25 to 1.0 beats
+- Classic house rhythm: kick-heavy, syncopated on beat 4
+- Include some chromatic passing notes for movement"""
+            },
+            3: {  # Humanize MIDI
+                "name": "Humanize MIDI pattern",
+                "prompt": """Apply a 'humanize' transformation to the MIDI pattern on channel 3
+
+Transformation: Add subtle timing and velocity variations
+
+Steps to take:
+1. Use list_state to see current project state
+2. Get the current notes from channel 3
+3. Apply the transformation:
+   - Randomly shift note start times by ±0.03 beats
+   - Vary velocities by ±8-12 points
+   - Keep notes musical and on-grid overall
+4. Use set_note_batch to write the transformed notes back to channel 3
+
+Ensure all transformed notes have:
+- Pitch: 0-127 (integer)
+- Start time: >= 0.0 (beats)
+- Duration: > 0.0 (beats)
+- Velocity: 1-127 (integer)"""
+            },
+            4: {  # Quick mix polish
+                "name": "Quick mix polish",
+                "prompt": """Set mixer levels for a balanced mix:
+- Channel 0 (kick): volume 0.85, pan center
+- Channel 1 (bass): volume 0.75, pan center  
+- Channel 2 (lead): volume 0.65, pan center
+- Channel 3 (pad): volume 0.50, pan slight left (-0.15)
+- Channel 4 (arp): volume 0.60, pan slight right (+0.15)
+
+Steps:
+1. Use list_state to check current mixer setup
+2. Use mixer tool to set volume and pan for each channel as specified above"""
+            }
+        }
+        
+        demo = demo_prompts.get(index)
+        if demo:
+            # Fill in the chat input with the demo prompt
+            self.chat_input.setPlainText(demo["prompt"])
+            
+            # Show info about the demo
+            self.results_text.append(
+                f"\n🎯 Demo prompt loaded: {demo['name']}\n"
+                f"See demos/README_AI_RECIPES.md for full context and instructions.\n"
+            )
+            
+            # Reset combo box to default
+            self.demo_prompt_combo.setCurrentIndex(0)
     
     def _on_preview_plan(self):
         """Handle preview plan button click."""
