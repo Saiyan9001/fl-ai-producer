@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QComboBox, QFrame
 )
 from PySide6.QtCore import Signal, Qt
-from PySide6.QtGui import QColor, QPalette
 from typing import Optional
 
 

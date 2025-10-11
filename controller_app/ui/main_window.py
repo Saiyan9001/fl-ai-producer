@@ -6,10 +6,10 @@ Main Window for FL-AI-Producer Desktop Application
 from PySide6.QtWidgets import (
     QMainWindow, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QComboBox, QLineEdit, QPushButton, QTextEdit,
-    QListWidget, QListWidgetItem, QCheckBox, QGroupBox, QProgressBar,
+    QListWidget, QGroupBox, QProgressBar,
     QSplitter,
 )
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt
 import threading
 from controller_app.ui.components import TemplateSelector, AlertBanner
 from controller_app.ai.templates.user_prompts import (

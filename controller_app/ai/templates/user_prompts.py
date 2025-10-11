@@ -80,14 +80,6 @@ def make_melody_prompt(
     Returns:
         Dictionary with prompt and metadata
     """
-    # Define scale patterns (intervals from root)
-    scale_patterns = {
-        "major": [0, 2, 4, 5, 7, 9, 11],
-        "minor": [0, 2, 3, 5, 7, 8, 10],
-        "pentatonic": [0, 2, 4, 7, 9],
-        "harmonic_minor": [0, 2, 3, 5, 7, 8, 11]
-    }
-    
     # Get root note (C = 60)
     note_map = {
         "C": 60, "C#": 61, "Db": 61, "D": 62, "D#": 63, "Eb": 63,
@@ -132,7 +124,7 @@ Guidelines for the melody:
   - Balance between steps and leaps
 """
     
-    prompt += f"""- Note durations: 0.25 to 2.0 beats
+    prompt += """- Note durations: 0.25 to 2.0 beats
 - Velocity range: 60-127
 - Ensure notes don't overlap (adjust start times)
 """
