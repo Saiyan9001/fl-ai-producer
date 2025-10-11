@@ -267,3 +267,125 @@ class OllamaProvider(BaseProvider):
                         
                 except json.JSONDecodeError:
                     continue
+    
+    # Admin methods for model management
+    
+    def list_models(self) -> List[Dict[str, Any]]:
+        """
+        List all locally available models.
+        
+        Returns:
+            List of model information dictionaries with name, size, modified date, etc.
+            
+        Raises:
+            RuntimeError: If Ollama is not available or request fails
+        """
+        if not _REQUESTS_AVAILABLE:
+            raise RuntimeError(
+                "requests library is not available. Please install: pip install requests"
+            )
+        
+        try:
+            url = f"{self.host}/api/tags"
+            response = requests.get(url, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("models", [])
+        except Exception as e:
+            error_msg = self._normalize_error(e)
+            raise RuntimeError(f"Failed to list models: {error_msg}")
+    
+    def pull_model(self, model: str) -> Iterator[Dict[str, Any]]:
+        """
+        Pull a model from Ollama registry with streaming progress.
+        
+        Args:
+            model: Model name to pull (e.g., "llama3.1", "mistral")
+            
+        Yields:
+            Progress update dictionaries with status and completion info
+            
+        Raises:
+            RuntimeError: If Ollama is not available or pull fails
+        """
+        if not _REQUESTS_AVAILABLE:
+            raise RuntimeError(
+                "requests library is not available. Please install: pip install requests"
+            )
+        
+        try:
+            url = f"{self.host}/api/pull"
+            payload = {"name": model}
+            response = requests.post(
+                url,
+                json=payload,
+                timeout=None,  # Pull can take a long time
+                stream=True,
+            )
+            response.raise_for_status()
+            
+            for line in response.iter_lines():
+                if line:
+                    try:
+                        data = json.loads(line.decode("utf-8"))
+                        yield data
+                        
+                        # Check if done
+                        if data.get("status") == "success" or "error" in data:
+                            break
+                    except json.JSONDecodeError:
+                        continue
+                        
+        except Exception as e:
+            error_msg = self._normalize_error(e)
+            raise RuntimeError(f"Failed to pull model '{model}': {error_msg}")
+    
+    def show_running(self) -> List[Dict[str, Any]]:
+        """
+        Show currently running models.
+        
+        Returns:
+            List of running model information
+            
+        Raises:
+            RuntimeError: If Ollama is not available or request fails
+        """
+        if not _REQUESTS_AVAILABLE:
+            raise RuntimeError(
+                "requests library is not available. Please install: pip install requests"
+            )
+        
+        try:
+            url = f"{self.host}/api/ps"
+            response = requests.get(url, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("models", [])
+        except Exception as e:
+            error_msg = self._normalize_error(e)
+            raise RuntimeError(f"Failed to get running models: {error_msg}")
+    
+    def show_version(self) -> str:
+        """
+        Get Ollama version information.
+        
+        Returns:
+            Version string
+            
+        Raises:
+            RuntimeError: If Ollama is not available or request fails
+        """
+        if not _REQUESTS_AVAILABLE:
+            raise RuntimeError(
+                "requests library is not available. Please install: pip install requests"
+            )
+        
+        try:
+            url = f"{self.host}/api/version"
+            response = requests.get(url, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("version", "unknown")
+        except Exception as e:
+            error_msg = self._normalize_error(e)
+            raise RuntimeError(f"Failed to get Ollama version: {error_msg}")
