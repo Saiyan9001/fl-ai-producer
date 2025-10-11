@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 import threading
 from controller_app.ui.components import TemplateSelector, AlertBanner
+from controller_app.ui.ollama_panel import OllamaPanel
 from controller_app.ai.templates.user_prompts import (
     design_synth_prompt,
     make_melody_prompt,
@@ -67,6 +68,21 @@ class MainWindow(QMainWindow):
     
     def _create_ai_assistant_tab(self):
         """Create AI Assistant tab with agent controls."""
+        # Create a tab widget for sub-tabs
+        assistant_tabs = QTabWidget()
+        
+        # Create main assistant tab
+        assistant_widget = self._create_assistant_widget()
+        assistant_tabs.addTab(assistant_widget, "Assistant")
+        
+        # Create local models tab
+        self.ollama_panel = OllamaPanel(ollama_host="http://127.0.0.1:11434")
+        assistant_tabs.addTab(self.ollama_panel, "Local Models")
+        
+        self.tabs.addTab(assistant_tabs, "AI Assistant")
+    
+    def _create_assistant_widget(self):
+        """Create the main assistant widget."""
         widget = QWidget()
         main_layout = QVBoxLayout()
         
@@ -107,6 +123,7 @@ class MainWindow(QMainWindow):
         self.ollama_host_input = QLineEdit()
         self.ollama_host_input.setPlaceholderText("http://127.0.0.1:11434")
         self.ollama_host_input.setText("http://127.0.0.1:11434")
+        self.ollama_host_input.textChanged.connect(self._on_ollama_host_changed)
         host_layout.addWidget(self.ollama_host_input)
         config_layout.addLayout(host_layout)
         
@@ -191,12 +208,13 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.progress_bar)
         
         widget.setLayout(main_layout)
-        self.tabs.addTab(widget, "AI Assistant")
         
         # Initialize state
         self.current_plan = None
         self.cancel_flag = threading.Event()
         self._on_provider_changed(self.provider_combo.currentText())
+        
+        return widget
     
     def _on_provider_changed(self, provider: str):
         """Handle provider selection change."""
@@ -217,6 +235,11 @@ class MainWindow(QMainWindow):
         
         # Check configuration and show warnings
         self._check_provider_configuration()
+    
+    def _on_ollama_host_changed(self, host: str):
+        """Handle Ollama host change."""
+        if hasattr(self, 'ollama_panel'):
+            self.ollama_panel.update_host(host)
     
     def _check_provider_configuration(self):
         """Check if provider is properly configured and show warnings."""
