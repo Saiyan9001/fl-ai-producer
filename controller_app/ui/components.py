@@ -156,10 +156,22 @@ class AlertBanner(QFrame):
     def _update_style(self):
         """Update banner style based on alert type."""
         styles = {
-            "info": ("background-color: #d1ecf1; border: 2px solid #bee5eb; color: #0c5460;", "ℹ️"),
-            "warning": ("background-color: #fff3cd; border: 2px solid #ffeeba; color: #856404;", "⚠️"),
-            "error": ("background-color: #f8d7da; border: 2px solid #f5c6cb; color: #721c24;", "❌"),
-            "success": ("background-color: #d4edda; border: 2px solid #c3e6cb; color: #155724;", "✅")
+            "info": (
+                "background-color: #d1ecf1; border: 2px solid #bee5eb; color: #0c5460;",
+                "ℹ️"
+            ),
+            "warning": (
+                "background-color: #fff3cd; border: 2px solid #ffeeba; color: #856404;",
+                "⚠️"
+            ),
+            "error": (
+                "background-color: #f8d7da; border: 2px solid #f5c6cb; color: #721c24;",
+                "❌"
+            ),
+            "success": (
+                "background-color: #d4edda; border: 2px solid #c3e6cb; color: #155724;",
+                "✅"
+            )
         }
         
         style, icon = styles.get(self.alert_type, styles["info"])
