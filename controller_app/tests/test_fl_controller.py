@@ -101,8 +101,15 @@ def test_enumerate_plugins():
     plugins = main.enumerate_plugins(channel_idx=0)
     
     assert isinstance(plugins, list)
-    # In mock mode with invalid plugin, should return empty list
-    assert len(plugins) == 0
+    # In mock mode, MockPlugins.isValid() returns True, so we get 10 plugins
+    assert len(plugins) == 10
+    
+    # Check plugin structure
+    if len(plugins) > 0:
+        plugin = plugins[0]
+        assert "index" in plugin
+        assert "name" in plugin
+        assert "channel_index" in plugin
 
 
 def test_get_plugin_parameters():
