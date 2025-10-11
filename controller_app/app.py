@@ -13,6 +13,8 @@ from PySide6.QtCore import QTimer
 
 from ui.main_window import MainWindow
 from ipc.server import IPCServer
+from telemetry import init_telemetry
+from ai.guardrails import init_guardrails
 
 # Configure logging
 logging.basicConfig(
@@ -38,6 +40,14 @@ def main():
     """Main application entry point"""
     # Ensure application directories exist
     app_dir, cache_dir = ensure_app_dirs()
+    
+    # Initialize telemetry (local-only by default)
+    telemetry = init_telemetry(log_dir=app_dir / "telemetry", enabled=True)
+    logger.info("Telemetry initialized (local-only)")
+    
+    # Initialize guardrails with default limits
+    guardrails = init_guardrails()
+    logger.info("Guardrails initialized")
     
     # Create Qt Application
     app = QApplication(sys.argv)

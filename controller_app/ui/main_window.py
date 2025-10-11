@@ -6,13 +6,15 @@ Main Window for FL-AI-Producer Desktop Application
 from PySide6.QtWidgets import (
     QMainWindow, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QComboBox, QLineEdit, QPushButton, QTextEdit,
-    QListWidget, QGroupBox, QProgressBar,
+    QListWidget, QGroupBox, QProgressBar, QCheckBox,
     QSplitter,
 )
 from PySide6.QtCore import Qt
 import threading
 from controller_app.ui.components import TemplateSelector, AlertBanner
 from controller_app.ui.ollama_panel import OllamaPanel
+from controller_app.telemetry import get_telemetry
+from controller_app.ai.guardrails import get_guardrails
 from controller_app.ai.templates.user_prompts import (
     design_synth_prompt,
     make_melody_prompt,
@@ -129,6 +131,37 @@ class MainWindow(QMainWindow):
         
         config_group.setLayout(config_layout)
         main_layout.addWidget(config_group)
+        
+        # Safety and Privacy Settings
+        safety_group = QGroupBox("Safety & Privacy Settings")
+        safety_layout = QVBoxLayout()
+        
+        # Telemetry opt-in checkbox
+        telemetry_layout = QHBoxLayout()
+        self.telemetry_checkbox = QCheckBox("Enable Network Telemetry (opt-in)")
+        self.telemetry_checkbox.setChecked(False)  # Disabled by default
+        self.telemetry_checkbox.stateChanged.connect(self._on_telemetry_changed)
+        telemetry_layout.addWidget(self.telemetry_checkbox)
+        telemetry_info = QLabel("📊 Local logging is always enabled. Network telemetry is opt-in only.")
+        telemetry_info.setStyleSheet("color: gray; font-size: 10px;")
+        telemetry_layout.addWidget(telemetry_info)
+        telemetry_layout.addStretch()
+        safety_layout.addLayout(telemetry_layout)
+        
+        # Safe mode checkbox
+        safe_mode_layout = QHBoxLayout()
+        self.safe_mode_checkbox = QCheckBox("Safe Mode (stricter limits)")
+        self.safe_mode_checkbox.setChecked(False)  # Disabled by default
+        self.safe_mode_checkbox.stateChanged.connect(self._on_safe_mode_changed)
+        safe_mode_layout.addWidget(self.safe_mode_checkbox)
+        safe_mode_info = QLabel("🛡️ Reduces max notes/operations and enforces stricter rate limits.")
+        safe_mode_info.setStyleSheet("color: gray; font-size: 10px;")
+        safe_mode_layout.addWidget(safe_mode_info)
+        safe_mode_layout.addStretch()
+        safety_layout.addLayout(safe_mode_layout)
+        
+        safety_group.setLayout(safety_layout)
+        main_layout.addWidget(safety_group)
         
         # Alert banner for configuration warnings
         self.alert_banner = AlertBanner("", "warning")
@@ -254,6 +287,28 @@ class MainWindow(QMainWindow):
         """Handle Ollama host change."""
         if hasattr(self, 'ollama_panel'):
             self.ollama_panel.update_host(host)
+    
+    def _on_telemetry_changed(self, state: int):
+        """Handle telemetry checkbox change."""
+        enabled = state == Qt.CheckState.Checked.value
+        telemetry = get_telemetry()
+        telemetry.enable_network_telemetry(enabled)
+        
+        if enabled:
+            self.results_text.append("📊 Network telemetry enabled (opt-in)")
+        else:
+            self.results_text.append("📊 Network telemetry disabled (local-only logging continues)")
+    
+    def _on_safe_mode_changed(self, state: int):
+        """Handle safe mode checkbox change."""
+        enabled = state == Qt.CheckState.Checked.value
+        guardrails = get_guardrails()
+        guardrails.enable_safe_mode(enabled)
+        
+        if enabled:
+            self.results_text.append("🛡️ Safe mode enabled (stricter limits active)")
+        else:
+            self.results_text.append("🛡️ Safe mode disabled (normal limits active)")
     
     def _check_provider_configuration(self):
         """Check if provider is properly configured and show warnings."""

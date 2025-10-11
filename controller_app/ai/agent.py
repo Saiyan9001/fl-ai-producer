@@ -9,8 +9,13 @@ Agent loop that:
 """
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
+import logging
 from ..ai.providers.base import BaseProvider, ChatResponse
 from ..ipc.client import IPCClient
+from ..ai.guardrails import get_guardrails, safe_format_exception
+from ..telemetry import get_telemetry
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -48,20 +53,9 @@ def _is_destructive_action(tool_name: str, arguments: Dict[str, Any]) -> Tuple[b
     Returns:
         Tuple of (is_destructive, reason)
     """
-    # Check for ambiguous or destructive patterns
-    destructive_patterns = [
-        ("set_param", "reset all", "Resetting all parameters is destructive"),
-        ("set_note_batch", "clear", "Clearing all notes is destructive"),
-    ]
-    
-    for pattern_tool, pattern_key, reason in destructive_patterns:
-        if tool_name == pattern_tool:
-            # Check if any argument contains destructive keywords
-            for key, value in arguments.items():
-                if isinstance(value, str) and pattern_key in value.lower():
-                    return True, reason
-    
-    return False, ""
+    # Use guardrails to check for destructive patterns
+    guardrails = get_guardrails()
+    return guardrails.check_destructive_patterns(tool_name, arguments)
 
 
 def _validate_tool_arguments(tool_name: str, arguments: Dict[str, Any]) -> Optional[str]:
@@ -75,6 +69,8 @@ def _validate_tool_arguments(tool_name: str, arguments: Dict[str, Any]) -> Optio
     Returns:
         Error message if validation fails, None otherwise
     """
+    guardrails = get_guardrails()
+    
     # Validate set_param
     if tool_name == "set_param":
         if "value01" in arguments:
@@ -87,6 +83,12 @@ def _validate_tool_arguments(tool_name: str, arguments: Dict[str, Any]) -> Optio
         if "index" in arguments:
             if not isinstance(arguments["index"], int) or arguments["index"] < 0:
                 return f"Parameter index must be a non-negative integer"
+            
+            # Use guardrails validation
+            if "value01" in arguments:
+                error = guardrails.validate_parameter(arguments["index"], arguments["value01"])
+                if error:
+                    return error
     
     # Validate set_note_batch
     elif tool_name == "set_note_batch":
@@ -96,6 +98,11 @@ def _validate_tool_arguments(tool_name: str, arguments: Dict[str, Any]) -> Optio
         notes = arguments["notes"]
         if not isinstance(notes, list):
             return "notes must be a list"
+        
+        # Use guardrails validation for note count and ranges
+        error = guardrails.validate_notes(notes)
+        if error:
+            return error
         
         for i, note in enumerate(notes):
             if not isinstance(note, dict):
@@ -107,22 +114,22 @@ def _validate_tool_arguments(tool_name: str, arguments: Dict[str, Any]) -> Optio
                 if field not in note:
                     return f"Note {i} missing required field: {field}"
             
-            # Validate ranges
+            # Type validation
             pitch = note["pitch"]
-            if not isinstance(pitch, int) or pitch < 0 or pitch > 127:
-                return f"Note {i} pitch must be 0-127, got {pitch}"
+            if not isinstance(pitch, int):
+                return f"Note {i} pitch must be an integer, got {type(pitch)}"
             
             velocity = note["velocity"]
-            if not isinstance(velocity, int) or velocity < 1 or velocity > 127:
-                return f"Note {i} velocity must be 1-127, got {velocity}"
+            if not isinstance(velocity, int):
+                return f"Note {i} velocity must be an integer, got {type(velocity)}"
             
             duration = note["duration"]
-            if not isinstance(duration, (int, float)) or duration <= 0:
-                return f"Note {i} duration must be positive, got {duration}"
+            if not isinstance(duration, (int, float)):
+                return f"Note {i} duration must be a number, got {type(duration)}"
             
             start = note["start"]
-            if not isinstance(start, (int, float)) or start < 0:
-                return f"Note {i} start must be non-negative, got {start}"
+            if not isinstance(start, (int, float)):
+                return f"Note {i} start must be a number, got {type(start)}"
     
     # Validate transport
     elif tool_name == "transport":
@@ -229,6 +236,17 @@ def run_agent(
     if not dry_run and ipc_client is None:
         raise AgentError("ipc_client is required when dry_run=False")
     
+    # Get guardrails and telemetry instances
+    guardrails = get_guardrails()
+    telemetry = get_telemetry()
+    
+    # Reset per-query execution counter
+    guardrails.reset_query()
+    
+    # Log query to telemetry
+    provider_name = getattr(provider, '__class__', 'unknown').__name__
+    telemetry.log_agent_query(query, provider_name, dry_run)
+    
     # Default system prompt
     if system_prompt is None:
         system_prompt = """You are an intelligent DAW assistant for FL Studio.
@@ -259,7 +277,11 @@ Be precise and verify your actions."""
             stream=False,
         )
     except Exception as e:
-        raise AgentError(f"Provider error: {e}")
+        # Log error with safe formatting (redact secrets)
+        safe_error = safe_format_exception(e)
+        logger.error(f"Provider error: {safe_error}")
+        telemetry.log_error("provider_error", safe_error)
+        raise AgentError(f"Provider error: {safe_error}")
     
     # Check if we got tool calls
     if not response.tool_calls:
@@ -319,6 +341,14 @@ Be precise and verify your actions."""
             # Skip unchecked actions
             continue
         
+        # Check rate limit before execution
+        rate_error = guardrails.check_rate_limit()
+        if rate_error:
+            action.error = rate_error
+            telemetry.log_error("rate_limit", rate_error)
+            logger.warning(f"Rate limit exceeded for {action.tool_name}")
+            continue
+        
         try:
             # Execute tool via IPC client
             if action.tool_name == "list_state":
@@ -350,9 +380,14 @@ Be precise and verify your actions."""
                 raise AgentError(f"Unknown tool: {action.tool_name}")
             
             action.result = result
+            telemetry.log_tool_execution(action.tool_name, True)
             
         except Exception as e:
-            action.error = str(e)
+            # Redact secrets from error message
+            safe_error = safe_format_exception(e)
+            action.error = safe_error
+            telemetry.log_tool_execution(action.tool_name, False, safe_error)
+            logger.error(f"Tool execution failed for {action.tool_name}: {safe_error}")
     
     return AgentPlan(
         actions=actions,
