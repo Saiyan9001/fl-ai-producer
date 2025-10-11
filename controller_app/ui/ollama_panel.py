@@ -348,3 +348,16 @@ class OllamaPanel(QWidget):
         self.ollama_host = new_host
         self.host_label.setText(new_host)
         self._refresh_models()
+    
+    def closeEvent(self, event):
+        """Handle widget close event - cleanup threads."""
+        # Wait for threads to finish
+        if self.pull_thread and self.pull_thread.isRunning():
+            self.pull_thread.quit()
+            self.pull_thread.wait(1000)  # Wait max 1 second
+        
+        if self.refresh_thread and self.refresh_thread.isRunning():
+            self.refresh_thread.quit()
+            self.refresh_thread.wait(1000)  # Wait max 1 second
+        
+        super().closeEvent(event)
