@@ -6,11 +6,18 @@ Main Window for FL-AI-Producer Desktop Application
 from PySide6.QtWidgets import (
     QMainWindow, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QComboBox, QLineEdit, QPushButton, QTextEdit,
-    QListWidget, QListWidgetItem, QCheckBox, QGroupBox, QProgressBar,
+    QListWidget, QGroupBox, QProgressBar,
     QSplitter,
 )
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt
 import threading
+from controller_app.ui.components import TemplateSelector, AlertBanner
+from controller_app.ai.templates.user_prompts import (
+    design_synth_prompt,
+    make_melody_prompt,
+    recreate_instrument_prompt,
+    remix_pattern_prompt
+)
 
 
 class MainWindow(QMainWindow):
@@ -106,6 +113,16 @@ class MainWindow(QMainWindow):
         config_group.setLayout(config_layout)
         main_layout.addWidget(config_group)
         
+        # Alert banner for configuration warnings
+        self.alert_banner = AlertBanner("", "warning")
+        self.alert_banner.hide()
+        main_layout.addWidget(self.alert_banner)
+        
+        # Template selector
+        self.template_selector = TemplateSelector()
+        self.template_selector.templateSelected.connect(self._on_template_selected)
+        main_layout.addWidget(self.template_selector)
+        
         # Chat section with splitter
         splitter = QSplitter(Qt.Vertical)
         
@@ -197,6 +214,81 @@ class MainWindow(QMainWindow):
             self.model_input.setPlaceholderText("llama3.1")
         else:
             self.model_input.setPlaceholderText("Auto-detect model")
+        
+        # Check configuration and show warnings
+        self._check_provider_configuration()
+    
+    def _check_provider_configuration(self):
+        """Check if provider is properly configured and show warnings."""
+        provider = self.provider_combo.currentText()
+        
+        # Check OpenAI configuration
+        if provider == "OpenAI":
+            if not self.apikey_input.text().strip():
+                self.alert_banner.show_warning(
+                    "⚠️ OpenAI API key is not set. Please enter your API key to use OpenAI models."
+                )
+                return
+        
+        # Check Ollama configuration
+        if provider == "Ollama":
+            host = self.ollama_host_input.text().strip()
+            if not host:
+                self.alert_banner.show_warning(
+                    "⚠️ Ollama host is not set. Please enter the Ollama server URL."
+                )
+                return
+        
+        # All good - hide banner
+        self.alert_banner.hide()
+    
+    def _on_template_selected(self, template_name: str, parameters: dict):
+        """Handle template selection."""
+        # Generate the prompt from the template
+        try:
+            if template_name == "design_synth":
+                # Show a simple form or just use defaults
+                result = design_synth_prompt(
+                    style_tags="bright pad, lush, long release",
+                    channel_ref="0"
+                )
+            elif template_name == "make_melody":
+                result = make_melody_prompt(
+                    key="C",
+                    scale="major",
+                    mood="happy",
+                    channel_ref="0",
+                    num_bars=4
+                )
+            elif template_name == "recreate_instrument":
+                result = recreate_instrument_prompt(
+                    timbre_analysis={
+                        "brightness": 0.7,
+                        "noisiness": 0.2,
+                        "attack_time": 0.1,
+                        "sustain_level": 0.8
+                    },
+                    target_channel="0"
+                )
+            elif template_name == "remix_pattern":
+                result = remix_pattern_prompt(
+                    transformation="humanize",
+                    channel_ref="0"
+                )
+            else:
+                return
+            
+            # Fill in the chat input with the generated prompt
+            self.chat_input.setPlainText(result["prompt"])
+            
+            # Show info about the template
+            self.results_text.append(
+                f"\n✨ Template loaded: {result['category']}\n"
+                f"Expected tool calls: {', '.join(result['tool_calls_expected'])}\n"
+            )
+            
+        except Exception as e:
+            self.results_text.append(f"❌ Error loading template: {str(e)}")
     
     def _on_preview_plan(self):
         """Handle preview plan button click."""
