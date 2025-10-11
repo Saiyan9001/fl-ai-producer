@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fl-ai-producer"
+version = "0.1.0"
+description = "An Intelligent AI Assistant for FL Studio"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "FL-AI-Producer Team"}
+]
+keywords = ["fl-studio", "music", "ai", "midi", "audio"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Multimedia :: Sound/Audio",
+]
+
+dependencies = [
+    "PySide6>=6.6.1",
+    "numpy>=1.26.3",
+    "scipy>=1.12.0",
+    "librosa>=0.10.1",
+    "soundfile>=0.12.1",
+    "pydub>=0.25.1",
+    "mido>=1.3.0",
+    "python-rtmidi>=1.5.8",
+    "pretty_midi>=0.2.10",
+    "pyzmq>=25.1.2",
+    "pydantic>=2.6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-qt>=4.2.0",
+    "ruff>=0.1.11",
+    "black>=23.12.1",
+]
+
+[tool.setuptools]
+packages = ["controller_app", "fl_scripts"]
+
+[tool.pytest.ini_options]
+testpaths = ["controller_app/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

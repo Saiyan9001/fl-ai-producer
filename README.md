@@ -107,11 +107,19 @@ fl_scripts/
 ### 2) Clone and Install
 ```bash
 git clone https://github.com/yourname/fl-ai-producer.git
-cd fl-ai-producer/controller_app
-pip install -r requirements.txt
+cd fl-ai-producer
+pip install -r controller_app/requirements.txt
 ```
 
-### 3) Install FL Scripts
+### 3) Reconcile Repository Structure
+Before running the application, ensure all required files are present:
+```bash
+python tools/audit_repo.py --fix
+```
+
+This will verify the repository structure against the architecture defined in this README and create any missing files with minimal valid implementations.
+
+### 4) Install FL Scripts
 Copy the script folders:
 
 **Controller Script**
