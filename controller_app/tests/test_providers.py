@@ -6,10 +6,9 @@ Tests retry logic, timeouts, and provider selection.
 """
 import json
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from controller_app.ai.config import AIConfig, get_config
+from unittest.mock import Mock, patch
+from controller_app.ai.config import AIConfig
 from controller_app.ai.providers import (
-    BaseProvider,
     ChatResponse,
     ToolCall,
     OpenAIProvider,
