@@ -157,7 +157,30 @@ In FL Studio, open **View → Script Output**; the controller script should log 
 - In FL Studio Piano Roll menu → **Script → FL-AI-Producer → Insert from JSON**.
 - Alternatively, **Export MIDI** and import into FL Studio manually.
 
-### 5) Optional VMIDI Mode
+### 5) Use the AI Assistant
+The **AI Assistant** tab provides natural language control over FL Studio via OpenAI or local models (Ollama).
+
+**Configuration**:
+- **OpenAI**: Set your API key in the **API Key** field. The app uses `gpt-4o-mini` by default.
+- **Ollama (Local)**: Ensure Ollama is running at `http://127.0.0.1:11434` with a model installed (e.g., `llama3.1`).
+- **Auto mode**: Tries OpenAI first (if key is set), otherwise falls back to Ollama.
+
+**Privacy Note**: When using OpenAI, your prompts and project metadata (channel names, parameter values) are sent to OpenAI's API. When using Ollama, all processing happens locally on your machine—no data leaves your computer.
+
+**Quick Start**:
+1. Select a provider (Auto/OpenAI/Ollama) and configure credentials.
+2. Use **"Load Demo Prompt"** dropdown to load pre-built recipes (e.g., "Design a serum pluck").
+3. Click **"Preview Plan"** to see what the AI will do (dry-run mode).
+4. Click **"Apply Plan"** to execute changes in FL Studio.
+
+**Example Prompts**:
+- `"Set the cutoff on channel 0 to 0.7"`
+- `"Create a C major chord on channel 1"`
+- `"Start playback"`
+
+For detailed recipes and step-by-step examples, see **[demos/README_AI_RECIPES.md](demos/README_AI_RECIPES.md)**.
+
+### 6) Optional VMIDI Mode
 If direct FL API is unavailable, enable **Virtual MIDI Mode** and map CCs to plugin parameters using FL’s **Link to Controller…** function. The app exposes a documented CC map.
 
 ---
@@ -212,12 +235,39 @@ See the GitHub Actions workflow (`.github/workflows/ci.yml`) for CI build automa
 
 ## 🛠️ Troubleshooting
 
+### General Issues
 - **Firewall/Port**: Ensure port **5555** on localhost is not blocked.
 - **No Connection in FL**: Verify script paths, restart FL Studio, check **View → Script Output** for errors.
 - **CREPE/Tensor backends**: If installation fails, prefer the CPU variant or switch to the alternative (TensorFlow ↔ PyTorch) specified in `requirements.txt`.
 - **Audio Codecs**: For MP3 support, ensure `pydub` with FFmpeg or use WAV during testing.
 - **No Knob Movement**: Confirm you selected the correct channel/plugin; some plugins expose parameters differently—use the parameter **name search** in the UI.
 - **VMIDI**: If ports are missing, (1) create a port in loopMIDI, (2) restart the app, (3) link parameters in FL Studio via **Link to Controller…**.
+
+### AI Assistant Issues
+- **"OpenAI API key is not set"**: 
+  - Enter your OpenAI API key in the **API Key** field (get one at https://platform.openai.com/api-keys)
+  - Or switch to **Ollama** for local models (no API key required)
+  
+- **"OpenAI API error: Unauthorized" or "Invalid API key"**:
+  - Your API key may be expired or incorrect
+  - Generate a new key at https://platform.openai.com/api-keys
+  - Ensure the key starts with `sk-` and is copied completely
+  
+- **"Ollama connection failed" or "Model not found"**:
+  - Ensure Ollama is installed and running: `ollama serve`
+  - Check that the Ollama host is correct (default: `http://127.0.0.1:11434`)
+  - Install a model if missing: `ollama pull llama3.1`
+  - Verify the model name matches what's in the **Model** field
+  
+- **"Preview Plan" shows no actions**:
+  - The AI may not understand the prompt—try being more specific
+  - Reference tool names explicitly: `list_state`, `set_param`, `set_note_batch`, etc.
+  - Use the **"Load Demo Prompt"** dropdown for working examples
+  
+- **Parameters didn't change after applying plan**:
+  - Check that the target channel has a plugin loaded
+  - Use `get_params` in your prompt first to see available parameters
+  - Some plugins don't expose all parameters to FL Studio's scripting API
 
 ---
 
