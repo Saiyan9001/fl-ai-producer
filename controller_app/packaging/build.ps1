@@ -28,6 +28,9 @@ pyinstaller --name fl-ai-producer `
     --windowed `
     --icon=assets/icon.ico `
     --add-data "ui;ui" `
+    --add-data "ai/providers;ai/providers" `
+    --add-data "ai/templates;ai/templates" `
+    --add-data "ai/guardrails.py;ai" `
     app.py
 
 if ($LASTEXITCODE -eq 0) {
