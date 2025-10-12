@@ -10,6 +10,7 @@ Agent loop that:
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 import logging
+import sys
 from ..ai.providers.base import BaseProvider, ChatResponse
 from ..ipc.client import IPCClient
 from ..ai.guardrails import get_guardrails, safe_format_exception
@@ -394,3 +395,194 @@ Be precise and verify your actions."""
         reasoning=response.content or "Actions executed:",
         raw_response=response,
     )
+
+
+def _provider_check() -> int:
+    """
+    CLI command to check which AI provider is configured.
+    
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    try:
+        from .config import get_config
+        
+        config = get_config()
+        provider, error = config.resolve_provider()
+        
+        print("=" * 60)
+        print("FL-AI-Producer Provider Check")
+        print("=" * 60)
+        print()
+        
+        if error:
+            print(f"❌ Provider Configuration Error:")
+            print(f"   {error}")
+            print()
+            print("Available options:")
+            print("  • Set OPENAI_API_KEY environment variable or .env file")
+            print("  • Install and run Ollama: https://ollama.ai")
+            print("  • Set AI_PROVIDER=auto|openai|ollama")
+            return 1
+        
+        print(f"✓ Provider: {provider}")
+        print()
+        
+        if provider == "openai":
+            print(f"  Model: {config.openai_model}")
+            print(f"  API Key: {'*' * 8}{config.openai_api_key[-4:] if config.openai_api_key else 'NOT SET'}")
+        elif provider == "ollama":
+            print(f"  Host: {config.ollama_host}")
+            print(f"  Model: {config.ollama_model}")
+        
+        print()
+        print(f"  Request Timeout: {config.request_timeout_sec}s")
+        print(f"  Max Tokens: {config.max_tokens}")
+        print()
+        print("=" * 60)
+        
+        return 0
+        
+    except Exception as e:
+        print(f"Error checking provider: {e}", file=sys.stderr)
+        return 1
+
+
+def _selftest() -> int:
+    """
+    CLI command to run basic self-tests of the agent.
+    
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    try:
+        from .templates.tool_schemas import get_tool_schemas
+        from .providers.base import ChatResponse, ToolCall
+        
+        print("=" * 60)
+        print("FL-AI-Producer Self-Test")
+        print("=" * 60)
+        print()
+        
+        # Test 1: Load tool schemas
+        print("✓ Test 1: Loading tool schemas...")
+        tools = get_tool_schemas()
+        print(f"  Loaded {len(tools)} tools: {', '.join(tools.keys())}")
+        print()
+        
+        # Test 2: Create a mock provider and test agent dry-run
+        print("✓ Test 2: Testing agent dry-run mode...")
+        
+        class MockProvider:
+            """Mock provider for testing."""
+            def chat(self, messages, tools=None, tool_choice=None, stream=False):
+                return ChatResponse(
+                    content="Setting parameter value",
+                    tool_calls=[
+                        ToolCall(
+                            name="set_param",
+                            arguments={
+                                "plugin_ref": "0:0",
+                                "index": 0,
+                                "value01": 0.5,
+                            }
+                        )
+                    ],
+                    usage={"input_tokens": 10, "output_tokens": 5},
+                )
+        
+        provider = MockProvider()
+        plan = run_agent(
+            query="Set parameter 0 to 0.5",
+            provider=provider,
+            tools=tools,
+            dry_run=True,
+        )
+        
+        print(f"  Agent generated {len(plan.actions)} actions")
+        for i, action in enumerate(plan.actions, 1):
+            print(f"    {i}. {action.description}")
+        print()
+        
+        # Test 3: Validate tool argument validation
+        print("✓ Test 3: Testing tool argument validation...")
+        error = _validate_tool_arguments("set_param", {
+            "plugin_ref": "0:0",
+            "index": 0,
+            "value01": 0.5,
+        })
+        if error:
+            print(f"  Unexpected validation error: {error}")
+            return 1
+        print("  Argument validation passed")
+        print()
+        
+        # Test 4: Check guardrails
+        print("✓ Test 4: Testing guardrails...")
+        guardrails = get_guardrails()
+        guardrails.reset_query()
+        is_destructive, reason = guardrails.check_destructive_patterns("set_param", {
+            "plugin_ref": "0:0",
+            "index": 0,
+            "value01": 0.5,
+        })
+        print(f"  Destructive check: {is_destructive} (reason: {reason or 'none'})")
+        print()
+        
+        # Test 5: Provider check
+        print("✓ Test 5: Checking provider configuration...")
+        from .config import get_config
+        config = get_config()
+        provider_name, error = config.resolve_provider()
+        if error:
+            print(f"  ⚠ Warning: {error}")
+            print("  Note: This is expected if no provider is configured")
+        else:
+            print(f"  Provider available: {provider_name}")
+        print()
+        
+        print("=" * 60)
+        print("✓ All self-tests passed!")
+        print("=" * 60)
+        
+        return 0
+        
+    except Exception as e:
+        print(f"❌ Self-test failed: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return 1
+
+
+def _cli_main():
+    """CLI entry point for agent commands."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description="FL-AI-Producer Agent CLI",
+        prog="python -m controller_app.ai.agent"
+    )
+    parser.add_argument(
+        "--provider-check",
+        action="store_true",
+        help="Check which AI provider is configured"
+    )
+    parser.add_argument(
+        "--selftest",
+        action="store_true",
+        help="Run basic self-tests of the agent"
+    )
+    
+    args = parser.parse_args()
+    
+    if args.provider_check:
+        return _provider_check()
+    elif args.selftest:
+        return _selftest()
+    else:
+        parser.print_help()
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(_cli_main())

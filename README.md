@@ -185,6 +185,40 @@ If direct FL API is unavailable, enable **Virtual MIDI Mode** and map CCs to plu
 
 ---
 
+## 🔒 Security & Privacy
+
+### API Key Storage
+- **API keys are stored in memory only** during runtime—they are never written to disk by the application.
+- Keys can be provided via:
+  1. The UI input field (stored in memory for the session)
+  2. Environment variables (e.g., `OPENAI_API_KEY`)
+  3. **Optional `.env` file** in the repository root (add to `.gitignore` to prevent accidental commits)
+
+⚠️ **Never commit API keys to version control.** Always add `.env` to your `.gitignore` file.
+
+### Data Privacy
+- **OpenAI**: When using OpenAI models, your queries and FL Studio metadata (channel names, parameter values) are sent to OpenAI's API. Review [OpenAI's privacy policy](https://openai.com/policies/privacy-policy) for details.
+- **Ollama (Local)**: All processing happens locally on your machine. No data is sent to external servers.
+
+### Recommended Practices
+1. Use environment variables or `.env` files for API keys—avoid hardcoding
+2. Rotate API keys periodically
+3. Use Ollama for sensitive projects that should not leave your machine
+4. Review the [AI Assistant README](controller_app/ai/AGENT_README.md) for details on tool execution safeguards
+
+### CLI Tools
+Check your provider configuration:
+```bash
+python -m controller_app.ai.agent --provider-check
+```
+
+Run self-tests:
+```bash
+python -m controller_app.ai.agent --selftest
+```
+
+---
+
 ## 🧪 Testing
 Run all unit tests locally:
 ```bash
